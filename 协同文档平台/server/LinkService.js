@@ -1,7 +1,8 @@
 // LinkService：token 到成员标识、角色、文档范围的最简校验；签发与停用。
-// 表 4-13：issueLink / verify / disable / list
+// 表 4-13：issueLink / verify / disable / list / bulkDisable / clearRecords / extendLinks
 // 表 4-17：token(32位十六进制) / memberName / role(owner|editor|viewer) / docId / enabled / createdAt
 // 第 1 轮迭代新增字段：expiresAt（ISO 时间字符串；null 表示永久有效，需手动停用）
+// 第 5 轮迭代：extendLinks 批量顺延 expiresAt，供过期链接复用而不必重新签发。
 // 表 4-18：令牌明文存于 links.json，本期不实现哈希、加密与安全防护。
 const crypto = require('crypto');
 const { JsonStore } = require('./JsonStore');
@@ -86,6 +87,30 @@ class LinkService {
     fresh.links = fresh.links.filter((l) => !set.has(l.token));
     this.store.write(fresh);
     return hits.length;
+  }
+
+  // 第 5 轮：批量延长有效期（过期链接复用，不必重新签发）。
+  // 起点取 max(当前时间, 原到期时间)：已过期的从「现在」重新起算，未过期的在
+  // 原期限上顺延，不会因延期反而缩短。永久链接（无 expiresAt）跳过；
+  // 延期不改动 enabled —— 手动停用是管理员的主动废弃决定，不应被延期顺带复活。
+  extendLinks(tokens, hours) {
+    const set = new Set(Array.isArray(tokens) ? tokens : []);
+    const data = this.store.read();
+    const now = Date.now();
+    const span = Number(hours) * 3600 * 1000;
+    const items = [];
+    let skippedPermanent = 0;
+    let stillDisabled = 0;
+    for (const link of data.links) {
+      if (!set.has(link.token)) continue;
+      if (!link.expiresAt) { skippedPermanent++; continue; }
+      const base = Math.max(now, Date.parse(link.expiresAt) || now);
+      link.expiresAt = new Date(base + span).toISOString();
+      if (!link.enabled) stillDisabled++;
+      items.push({ token: link.token, memberName: link.memberName, expiresAt: link.expiresAt });
+    }
+    if (items.length) this.store.write(data);
+    return { extended: items.length, skippedPermanent, stillDisabled, items };
   }
 
   list() {

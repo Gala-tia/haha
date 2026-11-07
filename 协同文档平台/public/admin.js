@@ -1,5 +1,6 @@
 // AdminPage：签发／停用链接，展示链接列表（含到期状态）。
 // 第 4 轮：左侧勾选、全选、反选、一键停用、清除记录（默认连带停用 + 确认框）。
+// 第 5 轮：选中已过期、批量延长有效期（预设 / 自定义小时数，带确认框）。
 (function () {
   'use strict';
   function $(id) { return document.getElementById(id); }
@@ -12,12 +13,28 @@
   function isExpired(l) { return !!(l.expiresAt && Date.now() > Date.parse(l.expiresAt)); }
 
   var selected = new Set();   // 当前勾选的 token
-  var currentList = [];       // 最近一次加载的列表，供全选 / 反选使用
+  var currentList = [];       // 最近一次加载的列表，供全选 / 反选 / 选中过期使用
 
   function post(url, body) {
     return fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
     }).then(function (r) { return r.json(); });
+  }
+
+  function syncChecks() {
+    $('linkRows').querySelectorAll('.rowCheck').forEach(function (cb) {
+      cb.checked = selected.has(cb.getAttribute('data-token'));
+    });
+  }
+
+  function extendHours() {
+    var custom = $('extendCustom').value.trim();
+    var h = Number(custom === '' ? $('extendHours').value : custom);
+    if (!Number.isFinite(h) || h < 1 || h > 8760) {
+      alert('延长时长需为 1~8760 小时（1 小时 ~ 1 年）');
+      return null;
+    }
+    return h;
   }
 
   function updateBulkBar() {
@@ -28,6 +45,7 @@
     var n = selected.size;
     $('selectedCount').textContent = n;
     $('bulkDisableBtn').disabled = n === 0;
+    $('bulkExtendBtn').disabled = n === 0;
     // 清除记录「默认停用」：未勾选任何记录时按钮置灰，不允许误触
     $('bulkClearBtn').disabled = n === 0;
     var all = $('checkAll');
@@ -46,7 +64,7 @@
         var usable = l.enabled && !expired;
         var state = !l.enabled ? '已停用' : (expired ? '已过期' : '有效');
         var tagCls = !usable ? (expired && l.enabled ? ' expired' : ' off') : '';
-        return '<tr>'
+        return '<tr' + (expired && l.enabled ? ' class="row-expired"' : '') + '>'
           + '<td class="checkcol"><input type="checkbox" class="rowCheck" data-token="' + esc(l.token) + '"'
           + (selected.has(l.token) ? ' checked' : '') + '></td>'
           + '<td>' + esc(l.memberName) + '</td>'
@@ -103,10 +121,19 @@
     currentList.forEach(function (l) {
       if (selected.has(l.token)) selected.delete(l.token); else selected.add(l.token);
     });
-    $('linkRows').querySelectorAll('.rowCheck').forEach(function (cb) {
-      cb.checked = selected.has(cb.getAttribute('data-token'));
-    });
+    syncChecks();
     updateBulkBar();
+  });
+
+  // 第 5 轮：一键只勾选过期链接，免去在长列表里逐条找
+  $('selectExpiredBtn').addEventListener('click', function () {
+    selected.clear();
+    currentList.forEach(function (l) {
+      if (l.enabled && isExpired(l)) selected.add(l.token);
+    });
+    syncChecks();
+    updateBulkBar();
+    $('bulkMsg').textContent = '已选中 ' + selected.size + ' 条过期链接';
   });
 
   $('linkRows').addEventListener('change', function (e) {
@@ -124,6 +151,26 @@
     post('/api/links/bulk-disable', { tokens: Array.from(selected) }).then(function (r) {
       $('bulkMsg').textContent = '已停用 ' + r.disabled + ' 条链接';
       selected.clear();
+      load();
+    });
+  });
+
+  // 第 5 轮：批量延期。已过期从现在起算，未过期在原到期上顺延；永久 / 停用分别计数提示。
+  $('bulkExtendBtn').addEventListener('click', function () {
+    var n = selected.size;
+    if (!n) return;
+    var h = extendHours();
+    if (h === null) return;
+    if (!confirm('把选中的 ' + n + ' 条链接延长 ' + h + ' 小时吗？\n\n'
+      + '· 已过期：从当前时间重新起算；\n'
+      + '· 未过期：在原到期时间上顺延；\n'
+      + '· 永久链接自动跳过；已停用链接仅延长有效期，不会自动恢复。')) return;
+    post('/api/links/bulk-extend', { tokens: Array.from(selected), hours: h }).then(function (r) {
+      var extra = [];
+      if (r.skippedPermanent) extra.push('跳过永久 ' + r.skippedPermanent + ' 条');
+      if (r.stillDisabled) extra.push('仍停用 ' + r.stillDisabled + ' 条');
+      $('bulkMsg').textContent = '已延期 ' + r.extended + ' 条'
+        + (extra.length ? '（' + extra.join('，') + '）' : '');
       load();
     });
   });

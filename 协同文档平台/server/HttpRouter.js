@@ -1,4 +1,4 @@
-// HttpRouter：静态页、首屏数据、版本列表与下载、链接管理接口。
+// HttpRouter：静态页、首屏数据、版本列表与下载、链接管理接口、成员聚合视图。
 // 表 4-13 中的 HTTP 路由逐条对应下面的 app.get / app.post。
 const express = require('express');
 const fs = require('fs');
@@ -7,10 +7,12 @@ const path = require('path');
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
 class HttpRouter {
-  constructor({ links, docs, versions }) {
+  // 第 5 轮：hub 只用于成员管理页读在线连接数，为空时退化为 0，不影响其它路由。
+  constructor({ links, docs, versions, hub }) {
     this.links = links;
     this.docs = docs;
     this.versions = versions;
+    this.hub = hub || null;
     this.app = express();
     this.app.use(express.json());
     this.app.use('/static', express.static(PUBLIC_DIR));
@@ -19,6 +21,8 @@ class HttpRouter {
     this.app.get('/admin.html', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'admin.html')));
     // 第 3 轮：与链接管理并列的免链接只读查看页（不校验 token）
     this.app.get('/view.html', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'view.html')));
+    // 第 5 轮：成员管理单独成页，与链接管理 / 文档查看并列
+    this.app.get('/members.html', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'members.html')));
 
     // GET /d/:token —— 首屏页面与文档初始内容（页面内联 bootstrap，避免二次请求）
     this.app.get('/d/:token', (req, res) => {
@@ -62,6 +66,56 @@ class HttpRouter {
       const tokens = (req.body || {}).tokens;
       if (!Array.isArray(tokens) || !tokens.length) return res.status(400).json({ error: '未选择任何链接' });
       res.json({ ok: true, cleared: this.links.clearRecords(tokens) });
+    });
+    // 第 5 轮：批量延长有效期。hours 限定 1~8760（1 小时 ~ 1 年），防止误填把链接改成永久或超长。
+    this.app.post('/api/links/bulk-extend', (req, res) => {
+      const body = req.body || {};
+      const hours = Number(body.hours);
+      if (!Array.isArray(body.tokens) || !body.tokens.length) {
+        return res.status(400).json({ error: '未选择任何链接' });
+      }
+      if (!Number.isFinite(hours) || hours < 1 || hours > 8760) {
+        return res.status(400).json({ error: '延长时长需为 1~8760 小时' });
+      }
+      res.json(Object.assign({ ok: true, hours }, this.links.extendLinks(body.tokens, hours)));
+    });
+
+    // 第 5 轮：成员聚合视图。成员按签发时填写的 memberName 归并（系统无账号体系，
+    // 同名视为同一人）；只读聚合，写操作仍复用上面的批量接口，避免另开一套逻辑。
+    this.app.get('/api/members', (req, res) => {
+      const now = Date.now();
+      const online = (this.hub && typeof this.hub.onlineByMember === 'function')
+        ? this.hub.onlineByMember() : {};
+      const map = new Map();
+      for (const l of this.links.list()) {
+        const name = l.memberName || '未命名成员';
+        if (!map.has(name)) {
+          map.set(name, {
+            memberName: name, roles: [], linkCount: 0,
+            active: 0, expired: 0, disabled: 0,
+            lastIssuedAt: '', latestExpiresAt: '', hasPermanent: false,
+            online: online[name] || 0, tokens: [], links: []
+          });
+        }
+        const m = map.get(name);
+        const expired = !!(l.expiresAt && now > Date.parse(l.expiresAt));
+        const usable = !!l.enabled && !expired;
+        m.linkCount++;
+        if (!l.enabled) m.disabled++;
+        else if (expired) m.expired++;
+        else m.active++;
+        if (!m.roles.includes(l.role)) m.roles.push(l.role);
+        if (l.createdAt && l.createdAt > m.lastIssuedAt) m.lastIssuedAt = l.createdAt;
+        if (!l.expiresAt) m.hasPermanent = true;
+        else if (l.expiresAt > m.latestExpiresAt) m.latestExpiresAt = l.expiresAt;
+        m.tokens.push(l.token);
+        m.links.push({
+          token: l.token, role: l.role, docId: l.docId, enabled: l.enabled,
+          createdAt: l.createdAt || '', expiresAt: l.expiresAt || null,
+          expired, usable
+        });
+      }
+      res.json([...map.values()]);
     });
 
     // 第 3 轮：免链接只读预览。只读正文与版本元数据，不返回任何链接或令牌。

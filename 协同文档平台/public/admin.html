@@ -28,7 +28,7 @@
     .result { margin-top: 14px; padding: 12px; border-radius: 8px; background: #F0F7F2;
       border: 1px solid #CFE8D9; font-size: 12px; color: #276B48; display: none; }
     .result a { color: #1D6FA8; word-break: break-all; }
-    /* 第 4 轮：批量操作栏 */
+    /* 第 4 轮：批量操作栏；第 5 轮：延期控件 */
     .bulkbar {
       display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
       background: #F7F9FD; border: 1px solid #E3E9F3; border-radius: 8px;
@@ -38,6 +38,12 @@
     .bulkbar .selinfo strong { color: #2C5EA8; font-size: 14px; }
     .bulkbar .bulktip { color: #9AA6B8; margin-left: auto; }
     .bulkbar .bulkmsg { color: #276B48; font-weight: 600; }
+    .extend-group { display: inline-flex; align-items: center; gap: 6px; color: #5A6880; }
+    .extend-group select, .extend-group input {
+      height: 27px; padding: 0 6px; border: 1px solid #DDE4EF; border-radius: 5px;
+      background: #FFF; color: #22304A; font-size: 11.5px;
+    }
+    .extend-group input { width: 96px; }
     .mini {
       border: 1px solid #DDE4EF; background: #FFF; border-radius: 5px; padding: 4px 10px;
       font-size: 11.5px; color: #5A6880;
@@ -45,6 +51,8 @@
     .mini:hover:not(:disabled) { background: #F0F5FD; border-color: #A9C1E8; }
     .mini.danger { color: #B54A34; border-color: #EBCBC3; }
     .mini.danger:hover:not(:disabled) { background: #FDF1EE; border-color: #E0A899; }
+    .mini.extend { color: #276B48; border-color: #CBE6D7; }
+    .mini.extend:hover:not(:disabled) { background: #EFF8F2; border-color: #A8D5BC; }
     .table-wrap { overflow-x: auto; }
     table { width: 100%; min-width: 1080px; border-collapse: collapse; font-size: 12.5px; }
     th { text-align: left; background: #F5F8FD; color: #5A6880; font-weight: 600;
@@ -55,6 +63,7 @@
     .tag { padding: 2px 8px; border-radius: 10px; font-size: 11px; background: #EAF0FA; color: #2C5EA8; }
     .tag.off { background: #F2F3F5; color: #8A98AF; }
     .tag.expired { background: #FDF1E7; color: #B26A28; }
+    tr.row-expired { background: #FFFCF7; }
     /* 第 3 轮：链接列不再截断，完整 URL 换行显示并可点击打开 */
     .linkcell {
       min-width: 280px; max-width: 340px; white-space: normal; word-break: break-all;
@@ -68,11 +77,12 @@
 <body>
   <div class="page">
     <h2>链接管理</h2>
-    <p class="lead">本系统不使用账号密码。管理员为每位成员签发一条互不相同的链接，链接本身决定成员标识、角色与可访问文档。成员点开链接即可进入，无需注册或登录。<br>链接默认 <strong>1 天后自动失效</strong>，无需逐条手动停用；签发时也可改为 1 小时、7 天或永久。</p>
+    <p class="lead">本系统不使用账号密码。管理员为每位成员签发一条互不相同的链接，链接本身决定成员标识、角色与可访问文档。成员点开链接即可进入，无需注册或登录。<br>链接默认 <strong>1 天后自动失效</strong>，无需逐条手动停用；过期后可勾选多条<strong>批量延期</strong>，不必重新签发。</p>
 
     <nav class="page-tabs">
       <a href="/admin.html" class="active">链接管理</a>
       <a href="/view.html">文档查看（免链接）</a>
+      <a href="/members.html">成员管理</a>
     </nav>
 
     <div class="card">
@@ -106,11 +116,23 @@
 
     <div class="card">
       <h3>已签发链接 <span id="total" class="count">0</span></h3>
-      <!-- 第 4 轮：勾选 / 全选 / 一键停用 / 清除记录 -->
+      <!-- 第 4 轮：勾选 / 全选 / 一键停用 / 清除记录；第 5 轮：选中已过期 / 批量延期 -->
       <div class="bulkbar">
         <span class="selinfo">已选 <strong id="selectedCount">0</strong> 条</span>
         <button id="invertBtn" class="mini" type="button">反选</button>
+        <button id="selectExpiredBtn" class="mini" type="button" title="只勾选已过期且未停用的链接">选中已过期</button>
         <button id="bulkDisableBtn" class="mini" type="button" disabled>一键停用选中</button>
+        <span class="extend-group">延长
+          <select id="extendHours" title="预设时长">
+            <option value="1">1 小时</option>
+            <option value="24" selected>1 天</option>
+            <option value="168">7 天</option>
+            <option value="720">30 天</option>
+          </select>
+          <input id="extendCustom" type="number" min="1" max="8760" placeholder="自定义" title="填写后优先于左侧预设（1~8760）">
+          <span>小时</span>
+          <button id="bulkExtendBtn" class="mini extend" type="button" disabled>延期选中</button>
+        </span>
         <button id="bulkClearBtn" class="mini danger" type="button" disabled>清除记录</button>
         <span class="bulktip">清除记录会先停用所选链接，再永久删除记录（需确认）</span>
         <span id="bulkMsg" class="bulkmsg"></span>

@@ -64,6 +64,17 @@ class RealtimeHub {
       .map((s) => ({ connId: s.connId, name: s.memberName, role: s.role, paraIndex: s.editingPara, color: s.color }));
   }
 
+  // 第 5 轮：成员管理页的在线视图。统计每个成员名当前的 WebSocket 连接数；
+  // 握手（HELLO）之前的连接 memberName 为空，不计入。
+  onlineByMember() {
+    const counts = {};
+    for (const s of this.sessions.values()) {
+      if (!s.memberName) continue;
+      counts[s.memberName] = (counts[s.memberName] || 0) + 1;
+    }
+    return counts;
+  }
+
   holderView(docId) {
     const lock = this.locks.holderOf(docId);
     return lock ? { name: lock.holderName, connId: lock.holderConnId } : null;

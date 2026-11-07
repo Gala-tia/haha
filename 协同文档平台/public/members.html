@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>成员管理 · 协同文档平台</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    body { overflow: auto; display: block; }
+    .page { max-width: 1080px; margin: 0 auto; padding: 28px 22px 60px; }
+    .page h2 { font-size: 20px; margin: 0 0 6px; }
+    .lead { color: #7A879C; font-size: 13px; margin: 0 0 18px; line-height: 1.7; }
+    .page-tabs { display: flex; gap: 6px; margin: 0 0 20px; border-bottom: 1px solid #E3E9F3; }
+    .page-tabs a { padding: 9px 18px; font-size: 13px; color: #6A7890; text-decoration: none; border-bottom: 2px solid transparent; }
+    .page-tabs a:hover { color: #2C5EA8; }
+    .page-tabs a.active { color: #2C5EA8; font-weight: 600; border-bottom-color: #2C5EA8; }
+    .notice {
+      background: #FDF7EE; border: 1px solid #F0DCBE; color: #8A6224;
+      border-radius: 8px; padding: 12px 14px; font-size: 12px; line-height: 1.8; margin: 0 0 18px;
+    }
+    .card { background: #FFF; border: 1px solid #E3E9F3; border-radius: 10px; padding: 20px; margin-bottom: 18px; }
+    .card h3 { font-size: 14px; margin: 0 0 14px; }
+    .stats { display: flex; gap: 12px; flex-wrap: wrap; margin: 0 0 18px; }
+    .stat {
+      flex: 1 1 130px; background: #FFF; border: 1px solid #E3E9F3; border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .stat .n { font-size: 22px; font-weight: 700; color: #2C5EA8; line-height: 1.2; }
+    .stat .n.warn { color: #B26A28; }
+    .stat .n.mute { color: #8A98AF; }
+    .stat .n.online { color: #2E8B62; }
+    .stat .k { font-size: 11.5px; color: #7A879C; margin-top: 4px; }
+    .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0 0 14px; font-size: 12px; color: #5A6880; }
+    .bar input, .bar select {
+      height: 32px; padding: 0 9px; border: 1px solid #DDE4EF; border-radius: 6px;
+      background: #FFF; color: #22304A; font-size: 12px;
+    }
+    .bar input[type="search"] { min-width: 200px; }
+    .bar input[type="number"] { width: 88px; }
+    .bar .msg { color: #276B48; font-weight: 600; margin-left: auto; }
+    .mini {
+      border: 1px solid #DDE4EF; background: #FFF; border-radius: 5px; padding: 5px 10px;
+      font-size: 11.5px; color: #5A6880;
+    }
+    .mini:hover:not(:disabled) { background: #F0F5FD; border-color: #A9C1E8; }
+    .mini.danger { color: #B54A34; border-color: #EBCBC3; }
+    .mini.danger:hover:not(:disabled) { background: #FDF1EE; border-color: #E0A899; }
+    .mini.extend { color: #276B48; border-color: #CBE6D7; }
+    .mini.extend:hover:not(:disabled) { background: #EFF8F2; border-color: #A8D5BC; }
+    .mini:disabled { opacity: .5; cursor: not-allowed; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 12.5px; }
+    th { text-align: left; background: #F5F8FD; color: #5A6880; font-weight: 600;
+      padding: 10px 12px; border-bottom: 1px solid #E3E9F3; }
+    td { padding: 10px 12px; border-bottom: 1px solid #F0F3F8; vertical-align: middle; }
+    .tag { padding: 2px 8px; border-radius: 10px; font-size: 11px; background: #EAF0FA; color: #2C5EA8; }
+    .tag.ok { background: #E9F6EE; color: #276B48; }
+    .tag.warn { background: #FDF1E7; color: #B26A28; }
+    .tag.off { background: #F2F3F5; color: #8A98AF; }
+    .tag.role { background: #F0EBFA; color: #6B55A8; }
+    .detail-row td { background: #F8FAFE; padding: 12px 16px; }
+    .detail-list { margin: 0; padding: 0; list-style: none; }
+    .detail-list li { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+      padding: 6px 0; border-bottom: 1px dashed #E3E9F3; font-size: 11.5px; }
+    .detail-list li:last-child { border-bottom: 0; }
+    .detail-list a { color: #1D6FA8; text-decoration: none; word-break: break-all; }
+    .detail-list a:hover { text-decoration: underline; }
+    .linkcell { max-width: 420px; word-break: break-all; }
+    .empty { color: #9AA6B8; text-align: center; padding: 26px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h2>成员管理</h2>
+    <p class="lead">按成员归集已签发的链接，一次看清谁有可用链接、谁已过期、谁在线，并对单个成员的链接批量延期或停用。</p>
+
+    <nav class="page-tabs">
+      <a href="/admin.html">链接管理</a>
+      <a href="/view.html">文档查看（免链接）</a>
+      <a href="/members.html" class="active">成员管理</a>
+    </nav>
+
+    <div class="notice">
+      本系统<strong>没有账号体系</strong>：成员记录来自签发链接时填写的「成员名」，同名自动归为一人；清除链接记录后，该成员也随之消失。
+      在线连接数取自服务进程的 WebSocket 会话，<strong>重启服务即清零</strong>。本页属管理侧，可见完整链接；「文档查看（免链接）」页仍不显示任何令牌。
+      按 3.1／4.1「本期不实现安全性」，管理接口未做鉴权，公网部署前需另加访问控制。
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="n" id="stMembers">0</div><div class="k">成员数</div></div>
+      <div class="stat"><div class="n online" id="stOnline">0</div><div class="k">在线连接</div></div>
+      <div class="stat"><div class="n" id="stActive">0</div><div class="k">有效链接</div></div>
+      <div class="stat"><div class="n warn" id="stExpired">0</div><div class="k">已过期链接</div></div>
+      <div class="stat"><div class="n mute" id="stDisabled">0</div><div class="k">已停用链接</div></div>
+    </div>
+
+    <div class="card">
+      <h3>成员列表 <span id="total" class="count">0</span></h3>
+      <div class="bar">
+        <label>搜索 <input id="keyword" type="search" placeholder="成员名关键字"></label>
+        <label>筛选
+          <select id="statusFilter">
+            <option value="all">全部成员</option>
+            <option value="usable">有可用链接</option>
+            <option value="inactive">无可用链接</option>
+            <option value="online">当前在线</option>
+          </select>
+        </label>
+        <label>延期时长 <input id="extendHours" type="number" min="1" max="8760" value="24"> 小时</label>
+        <button id="refreshBtn" class="mini" type="button">刷新</button>
+        <span id="msg" class="msg"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>成员</th><th>角色</th><th>链接数</th><th>有效 / 过期 / 停用</th>
+              <th>最近签发</th><th>最晚到期</th><th>在线</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="memberRows"></tbody>
+        </table>
+      </div>
+      <div id="emptyHint" class="empty" style="display:none">没有符合条件的成员。</div>
+    </div>
+  </div>
+  <script src="/static/members.js"></script>
+</body>
+</html>

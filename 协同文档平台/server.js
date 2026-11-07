@@ -16,7 +16,8 @@ const locks = new LockService();
 const docs = new DocService();
 const versions = new VersionService(docs.getStore());
 const hub = new RealtimeHub({ linkService: links, lockService: locks, docService: docs, versionService: versions });
-const router = new HttpRouter({ links, docs, versions });
+// 第 5 轮：把 hub 传给 HTTP 层，成员管理页据此显示在线连接数。
+const router = new HttpRouter({ links, docs, versions, hub });
 
 const server = http.createServer(router.app);
 const wss = new WebSocketServer({ server, path: '/ws' });
@@ -29,7 +30,9 @@ const PORT = Number(process.env.PORT) || 3000;
 server.listen(PORT, () => {
   console.log('');
   console.log('  多人实时协同文档编辑平台 已启动');
-  console.log('  管理页:  http://localhost:' + PORT + '/admin.html');
+  console.log('  链接管理: http://localhost:' + PORT + '/admin.html');
+  console.log('  文档查看: http://localhost:' + PORT + '/view.html');
+  console.log('  成员管理: http://localhost:' + PORT + '/members.html');
   console.log('  WebSocket: ws://localhost:' + PORT + '/ws');
   console.log('  数据文件: data/links.json, data/store.json');
   console.log('  停止服务: Ctrl + C');
