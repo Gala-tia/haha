@@ -1,0 +1,141 @@
+/* 协同文档平台 —— 浅色主题，便于报告截图 */
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+  color: #22304A; background: #F4F6FA; font-size: 14px;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+button, select, input { font-family: inherit; font-size: 13px; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+
+.topbar {
+  height: 62px; flex: 0 0 62px; background: #FFFFFF; border-bottom: 1px solid #E3E9F3;
+  display: flex; align-items: center; justify-content: space-between; padding: 0 22px;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo {
+  width: 36px; height: 36px; border-radius: 9px; background: #2C5EA8; color: #FFF;
+  display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700;
+}
+.brand h1 { font-size: 16px; margin: 0 0 2px; font-weight: 600; }
+.brand .sub { font-size: 11px; color: #8A98AF; }
+.top-right { display: flex; align-items: center; gap: 12px; }
+.badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; background: #EAF0FA; color: #2C5EA8; }
+.badge.owner { background: #FDF0E3; color: #B26B1D; }
+.badge.viewer { background: #EDF0F4; color: #6B7A91; }
+.me { font-size: 13px; color: #4A5872; }
+.conn { font-size: 12px; padding-left: 16px; position: relative; color: #7A879C; }
+.conn::before {
+  content: ""; position: absolute; left: 2px; top: 5px; width: 8px; height: 8px;
+  border-radius: 50%; background: #C3CBD8;
+}
+.conn.on { color: #2E8B62; }
+.conn.on::before { background: #35A873; }
+.conn.off::before { background: #D2607A; }
+
+.toolbar {
+  height: 52px; flex: 0 0 52px; background: #FFFFFF; border-bottom: 1px solid #E3E9F3;
+  display: flex; align-items: center; justify-content: space-between; padding: 0 22px; gap: 16px;
+}
+.tools { display: flex; align-items: center; gap: 6px; }
+.tool {
+  height: 30px; min-width: 34px; padding: 0 10px; border: 1px solid #DDE4EF; border-radius: 6px;
+  background: #FFF; color: #35435C;
+}
+.tool:hover:not(:disabled) { background: #F0F5FD; border-color: #A9C1E8; }
+.tool.select { padding: 0 8px; }
+.lock-area { display: flex; align-items: center; gap: 12px; }
+.lock-hint { font-size: 12px; color: #8A98AF; }
+.primary {
+  height: 32px; padding: 0 16px; border: 0; border-radius: 6px; background: #2C5EA8;
+  color: #FFF; font-weight: 600;
+}
+.primary:hover:not(:disabled) { background: #224C8A; }
+.primary.editing { background: #C0563F; }
+.primary.editing:hover { background: #A74732; }
+
+.layout { flex: 1 1 auto; display: flex; min-height: 0; padding: 16px; gap: 16px; }
+.side {
+  flex: 0 0 210px; background: #FFF; border: 1px solid #E3E9F3; border-radius: 10px;
+  padding: 16px; overflow-y: auto;
+}
+.side.right { flex-basis: 250px; }
+.side h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; color: #35435C; }
+.count {
+  display: inline-block; min-width: 20px; text-align: center; background: #EAF0FA;
+  color: #2C5EA8; border-radius: 10px; font-size: 11px; padding: 1px 6px; margin-left: 4px;
+}
+.member-list, .version-list { list-style: none; padding: 0; margin: 0; }
+.member-list li {
+  display: flex; align-items: center; gap: 8px; padding: 8px 6px; border-bottom: 1px solid #F0F3F8;
+  font-size: 12.5px;
+}
+.member-list .dotc { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; }
+.member-list .mrole { margin-left: auto; font-size: 11px; color: #8A98AF; }
+.holder-box {
+  margin-top: 16px; padding: 12px; border-radius: 8px; background: #F3F7FE;
+  border: 1px solid #DDE9FA; display: flex; flex-direction: column; gap: 5px;
+  font-size: 12px; color: #6A7890;
+}
+.holder-box strong { font-size: 14px; color: #2C5EA8; }
+.hint { font-size: 11px; color: #9AA6B8; line-height: 1.6; margin: 14px 0 0; }
+.side-head { display: flex; align-items: center; justify-content: space-between; }
+.side-head h3 { margin: 0; }
+.mini {
+  border: 1px solid #DDE4EF; background: #FFF; border-radius: 5px; padding: 3px 9px;
+  font-size: 11px; color: #5A6880;
+}
+.mini:hover { background: #F0F5FD; }
+.version-list li {
+  padding: 10px 4px; border-bottom: 1px solid #F0F3F8; font-size: 12px;
+}
+.version-list .vtime { color: #35435C; font-weight: 600; }
+.version-list .vmeta { color: #8A98AF; font-size: 11px; margin: 3px 0 6px; }
+.version-list .vacts { display: flex; gap: 6px; }
+
+.editor-wrap {
+  flex: 1 1 auto; min-width: 0; position: relative; background: #FFF;
+  border: 1px solid #E3E9F3; border-radius: 10px; overflow: auto;
+}
+.editor {
+  min-height: 100%; padding: 34px 42px; outline: none; line-height: 1.85;
+  font-size: 15px; color: #2A3549;
+}
+.editor[contenteditable="false"] { background: #FDFDFE; }
+.editor[contenteditable="true"] { background: #FFF; box-shadow: inset 0 0 0 2px #D8E6FA; }
+.editor h1 { font-size: 26px; margin: 0 0 18px; }
+.editor h2 { font-size: 20px; margin: 20px 0 10px; }
+.editor h3 { font-size: 16px; margin: 16px 0 8px; }
+.editor p { margin: 0 0 12px; }
+.editor ul { margin: 0 0 12px; padding-left: 24px; }
+.remote-cursor {
+  position: absolute; display: none; left: 18px; width: 3px; border-radius: 2px;
+  background: #3E9BD6; z-index: 5; pointer-events: none;
+}
+.remote-cursor::after {
+  content: attr(data-label); position: absolute; left: 8px; top: -18px; white-space: nowrap;
+  background: #3E9BD6; color: #FFF; font-size: 10px; padding: 2px 7px; border-radius: 4px;
+}
+.statusbar {
+  height: 30px; flex: 0 0 30px; background: #FFFFFF; border-top: 1px solid #E3E9F3;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 22px; font-size: 11px; color: #8A98AF;
+}
+#statusText.warn { color: #C0563F; }
+
+.modal.hidden { display: none; }
+.modal {
+  position: fixed; inset: 0; background: rgba(22, 34, 54, .45);
+  display: flex; align-items: center; justify-content: center; z-index: 50;
+}
+.modal-box {
+  width: min(720px, 86vw); max-height: 78vh; background: #FFF; border-radius: 10px;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid #E3E9F3;
+}
+.modal-body { padding: 24px 30px; overflow-y: auto; line-height: 1.85; }

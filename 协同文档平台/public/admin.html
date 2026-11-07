@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>链接管理 · 协同文档平台</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    body { overflow: auto; }
+    .page { max-width: 1000px; margin: 0 auto; padding: 28px 22px 60px; }
+    .page h2 { font-size: 20px; margin: 0 0 6px; }
+    .lead { color: #7A879C; font-size: 13px; margin: 0 0 22px; line-height: 1.7; }
+    .card { background: #FFF; border: 1px solid #E3E9F3; border-radius: 10px; padding: 20px; margin-bottom: 18px; }
+    .card h3 { font-size: 14px; margin: 0 0 16px; }
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #6A7890; }
+    .field input, .field select {
+      height: 34px; padding: 0 10px; border: 1px solid #DDE4EF; border-radius: 6px;
+      background: #FFF; color: #22304A; min-width: 170px;
+    }
+    .result { margin-top: 14px; padding: 12px; border-radius: 8px; background: #F0F7F2;
+      border: 1px solid #CFE8D9; font-size: 12px; color: #276B48; display: none; }
+    .result a { color: #1D6FA8; word-break: break-all; }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th { text-align: left; background: #F5F8FD; color: #5A6880; font-weight: 600;
+      padding: 10px 12px; border-bottom: 1px solid #E3E9F3; }
+    td { padding: 10px 12px; border-bottom: 1px solid #F0F3F8; vertical-align: middle; }
+    .tag { padding: 2px 8px; border-radius: 10px; font-size: 11px; background: #EAF0FA; color: #2C5EA8; }
+    .tag.off { background: #F2F3F5; color: #8A98AF; }
+    .linkcell { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #6A7890; }
+    .empty { color: #9AA6B8; text-align: center; padding: 26px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h2>链接管理</h2>
+    <p class="lead">本系统不使用账号密码。管理员为每位成员签发一条互不相同的链接，链接本身决定成员标识、角色与可访问文档。成员点开链接即可进入，无需注册或登录。</p>
+
+    <div class="card">
+      <h3>签发专属链接</h3>
+      <div class="form-row">
+        <label class="field">成员名
+          <input id="memberName" type="text" placeholder="例如：张三" value="">
+        </label>
+        <label class="field">角色
+          <select id="role">
+            <option value="editor">editor · 可编辑</option>
+            <option value="viewer">viewer · 只读</option>
+            <option value="owner">owner · 管理员</option>
+          </select>
+        </label>
+        <label class="field">文档 ID
+          <input id="docId" type="text" value="doc-1">
+        </label>
+        <button id="issueBtn" class="primary" type="button">签发链接</button>
+      </div>
+      <div id="result" class="result"></div>
+    </div>
+
+    <div class="card">
+      <h3>已签发链接 <span id="total" class="count">0</span></h3>
+      <table>
+        <thead>
+          <tr><th>成员</th><th>角色</th><th>文档</th><th>状态</th><th>签发时间</th><th>链接</th><th>操作</th></tr>
+        </thead>
+        <tbody id="linkRows"></tbody>
+      </table>
+      <div id="emptyHint" class="empty" style="display:none">还没有链接，先在上面签发一条。</div>
+    </div>
+  </div>
+  <script src="/static/admin.js"></script>
+</body>
+</html>

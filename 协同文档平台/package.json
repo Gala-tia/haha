@@ -1,0 +1,19 @@
+{
+  "name": "collab-doc-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "多人实时协同文档编辑平台（课程实践最小可运行原型）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "gen-link": "node scripts/gen-link.js",
+    "reset-data": "node scripts/reset-data.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

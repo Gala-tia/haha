@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>协同文档编辑</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">协</span>
+      <div>
+        <h1 id="docTitle">项目协作文档</h1>
+        <span class="sub">多人实时协同文档编辑平台</span>
+      </div>
+    </div>
+    <div class="top-right">
+      <span id="roleBadge" class="badge">—</span>
+      <span class="me" id="meName">—</span>
+      <span id="connState" class="conn off">连接中</span>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="tools">
+      <button type="button" data-cmd="bold" class="tool" title="加粗"><b>B</b></button>
+      <button type="button" data-cmd="italic" class="tool" title="斜体"><i>I</i></button>
+      <button type="button" data-cmd="insertUnorderedList" class="tool" title="无序列表">≡ 列表</button>
+      <select id="blockStyle" class="tool select">
+        <option value="p">正文段落</option>
+        <option value="h1">一级标题</option>
+        <option value="h2">二级标题</option>
+        <option value="h3">三级标题</option>
+      </select>
+    </div>
+    <div class="lock-area">
+      <span id="lockHint" class="lock-hint">当前为只读，点击申请写入权</span>
+      <button type="button" id="lockBtn" class="primary">开始编辑</button>
+    </div>
+  </div>
+
+  <main class="layout">
+    <aside class="side left">
+      <h3>在线成员 <span class="count" id="onlineCount">0</span></h3>
+      <ul id="memberList" class="member-list"></ul>
+      <div class="holder-box">
+        <span>当前写入权</span>
+        <strong id="holderName">无人</strong>
+      </div>
+      <p class="hint">同一时刻仅一人可写，其余成员实时查看结果。</p>
+    </aside>
+
+    <section class="editor-wrap" id="editorWrap">
+      <div id="remoteCursor" class="remote-cursor"></div>
+      <div id="editor" class="editor" contenteditable="false" spellcheck="false"></div>
+    </section>
+
+    <aside class="side right">
+      <div class="side-head">
+        <h3>历史版本</h3>
+        <button type="button" id="refreshVer" class="mini">刷新</button>
+      </div>
+      <ul id="versionList" class="version-list"></ul>
+      <p class="hint">每次编辑结束自动生成一个版本，最多保留 50 条。</p>
+    </aside>
+  </main>
+
+  <footer class="statusbar">
+    <span id="statusText">就绪</span>
+    <span>互斥写入 · 链接即身份 · 课程实践原型</span>
+  </footer>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-head">
+        <strong id="modalTitle">历史版本</strong>
+        <button type="button" id="modalClose" class="mini">关闭</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script>window.__BOOTSTRAP__ = __BOOT_DATA__;</script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
