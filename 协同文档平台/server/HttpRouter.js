@@ -52,6 +52,17 @@ class HttpRouter {
       const ok = this.links.disable(req.params.token);
       res.json({ ok });
     });
+    // 第 4 轮：批量管理。清除记录默认连带停用，前端点击前必须弹确认框。
+    this.app.post('/api/links/bulk-disable', (req, res) => {
+      const tokens = (req.body || {}).tokens;
+      if (!Array.isArray(tokens) || !tokens.length) return res.status(400).json({ error: '未选择任何链接' });
+      res.json({ ok: true, disabled: this.links.bulkDisable(tokens) });
+    });
+    this.app.post('/api/links/bulk-clear', (req, res) => {
+      const tokens = (req.body || {}).tokens;
+      if (!Array.isArray(tokens) || !tokens.length) return res.status(400).json({ error: '未选择任何链接' });
+      res.json({ ok: true, cleared: this.links.clearRecords(tokens) });
+    });
 
     // 第 3 轮：免链接只读预览。只读正文与版本元数据，不返回任何链接或令牌。
     // 直接读 store 而不用 getDocument()，避免任意 docId 请求顺带创建新文档并写盘。

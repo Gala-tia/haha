@@ -59,6 +59,35 @@ class LinkService {
     return true;
   }
 
+  // 第 4 轮：一键停用多条链接。返回实际被停用的条数（已停用的不重复计数）。
+  bulkDisable(tokens) {
+    const set = new Set(Array.isArray(tokens) ? tokens : []);
+    const data = this.store.read();
+    let n = 0;
+    for (const link of data.links) {
+      if (set.has(link.token) && link.enabled) { link.enabled = false; n++; }
+    }
+    if (n) this.store.write(data);
+    return n;
+  }
+
+  // 第 4 轮：清除记录（默认连带停用）。
+  // 分两步写盘：先把命中项标记停用，再移除记录。verify 按 links.json 查令牌，
+  // 记录被删后链接即永久失效，所以清除本身就等价于停用；显式先停用一次，
+  // 是为了让「清除即停用」在数据上可追溯，也避免只删界面行、后端仍留可用链接的误实现。
+  clearRecords(tokens) {
+    const set = new Set(Array.isArray(tokens) ? tokens : []);
+    const data = this.store.read();
+    const hits = data.links.filter((l) => set.has(l.token));
+    if (!hits.length) return 0;
+    hits.forEach((l) => { l.enabled = false; });
+    this.store.write(data);
+    const fresh = this.store.read();
+    fresh.links = fresh.links.filter((l) => !set.has(l.token));
+    this.store.write(fresh);
+    return hits.length;
+  }
+
   list() {
     return this.store.read().links.slice().reverse();
   }

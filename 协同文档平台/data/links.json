@@ -1,14 +1,6 @@
 {
   "links": [
     {
-      "token": "88b0a395b24cc74aa6eb5bd2cadc37fe",
-      "memberName": "耶和华",
-      "role": "owner",
-      "docId": "doc-1",
-      "enabled": false,
-      "createdAt": "2026-11-07T07:32:06.457Z"
-    },
-    {
       "token": "ab227a8f9d514c27a3c84c9d7facf14a",
       "memberName": "耶和华",
       "role": "editor",

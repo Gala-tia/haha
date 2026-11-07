@@ -1,4 +1,5 @@
-// AdminPage：填写成员名、角色与有效时长，签发／停用链接，展示链接列表（含到期状态）。
+// AdminPage：签发／停用链接，展示链接列表（含到期状态）。
+// 第 4 轮：左侧勾选、全选、反选、一键停用、清除记录（默认连带停用 + 确认框）。
 (function () {
   'use strict';
   function $(id) { return document.getElementById(id); }
@@ -10,8 +11,33 @@
   function fmt(iso) { return iso ? new Date(iso).toLocaleString('zh-CN') : '永久'; }
   function isExpired(l) { return !!(l.expiresAt && Date.now() > Date.parse(l.expiresAt)); }
 
+  var selected = new Set();   // 当前勾选的 token
+  var currentList = [];       // 最近一次加载的列表，供全选 / 反选使用
+
+  function post(url, body) {
+    return fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    }).then(function (r) { return r.json(); });
+  }
+
+  function updateBulkBar() {
+    // 清除记录后，把已不存在的 token 从选择集里移除
+    selected.forEach(function (t) {
+      if (!currentList.some(function (l) { return l.token === t; })) selected.delete(t);
+    });
+    var n = selected.size;
+    $('selectedCount').textContent = n;
+    $('bulkDisableBtn').disabled = n === 0;
+    // 清除记录「默认停用」：未勾选任何记录时按钮置灰，不允许误触
+    $('bulkClearBtn').disabled = n === 0;
+    var all = $('checkAll');
+    all.checked = currentList.length > 0 && n === currentList.length;
+    all.indeterminate = n > 0 && n < currentList.length;
+  }
+
   function load() {
     fetch('/api/links').then(function (r) { return r.json(); }).then(function (list) {
+      currentList = list;
       $('total').textContent = list.length;
       $('emptyHint').style.display = list.length ? 'none' : 'block';
       $('linkRows').innerHTML = list.map(function (l) {
@@ -21,6 +47,8 @@
         var state = !l.enabled ? '已停用' : (expired ? '已过期' : '有效');
         var tagCls = !usable ? (expired && l.enabled ? ' expired' : ' off') : '';
         return '<tr>'
+          + '<td class="checkcol"><input type="checkbox" class="rowCheck" data-token="' + esc(l.token) + '"'
+          + (selected.has(l.token) ? ' checked' : '') + '></td>'
           + '<td>' + esc(l.memberName) + '</td>'
           + '<td>' + esc(l.role) + '</td>'
           + '<td>' + esc(l.docId) + '</td>'
@@ -33,6 +61,7 @@
           + '<button class="mini" data-act="disable" data-token="' + esc(l.token) + '"' + (usable ? '' : ' disabled') + '>停用</button></td>'
           + '</tr>';
       }).join('');
+      updateBulkBar();
     });
   }
 
@@ -59,6 +88,57 @@
       $('memberName').value = '';
       load();
     }).catch(function () { alert('签发失败，请确认服务已启动'); });
+  });
+
+  // 第 4 轮：勾选状态
+  $('checkAll').addEventListener('change', function () {
+    var checked = this.checked;
+    if (checked) currentList.forEach(function (l) { selected.add(l.token); });
+    else selected.clear();
+    $('linkRows').querySelectorAll('.rowCheck').forEach(function (cb) { cb.checked = checked; });
+    updateBulkBar();
+  });
+
+  $('invertBtn').addEventListener('click', function () {
+    currentList.forEach(function (l) {
+      if (selected.has(l.token)) selected.delete(l.token); else selected.add(l.token);
+    });
+    $('linkRows').querySelectorAll('.rowCheck').forEach(function (cb) {
+      cb.checked = selected.has(cb.getAttribute('data-token'));
+    });
+    updateBulkBar();
+  });
+
+  $('linkRows').addEventListener('change', function (e) {
+    var cb = e.target.closest('.rowCheck');
+    if (!cb) return;
+    var token = cb.getAttribute('data-token');
+    if (cb.checked) selected.add(token); else selected.delete(token);
+    updateBulkBar();
+  });
+
+  $('bulkDisableBtn').addEventListener('click', function () {
+    var n = selected.size;
+    if (!n) return;
+    if (!confirm('确定停用选中的 ' + n + ' 条链接吗？停用后这些链接立即失效，记录仍保留在列表中。')) return;
+    post('/api/links/bulk-disable', { tokens: Array.from(selected) }).then(function (r) {
+      $('bulkMsg').textContent = '已停用 ' + r.disabled + ' 条链接';
+      selected.clear();
+      load();
+    });
+  });
+
+  $('bulkClearBtn').addEventListener('click', function () {
+    var n = selected.size;
+    if (!n) return;
+    if (!confirm('确定清除选中的 ' + n + ' 条记录吗？\n\n'
+      + '· 系统会先停用这些链接，再从列表永久删除记录；\n'
+      + '· 删除后链接彻底失效、不可恢复，只能重新签发。\n\n此操作不可撤销。')) return;
+    post('/api/links/bulk-clear', { tokens: Array.from(selected) }).then(function (r) {
+      $('bulkMsg').textContent = '已清除 ' + r.cleared + ' 条记录（含停用）';
+      selected.clear();
+      load();
+    });
   });
 
   $('linkRows').addEventListener('click', function (e) {
