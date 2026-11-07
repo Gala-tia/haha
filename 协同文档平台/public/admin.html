@@ -27,14 +27,15 @@
     td { padding: 10px 12px; border-bottom: 1px solid #F0F3F8; vertical-align: middle; }
     .tag { padding: 2px 8px; border-radius: 10px; font-size: 11px; background: #EAF0FA; color: #2C5EA8; }
     .tag.off { background: #F2F3F5; color: #8A98AF; }
-    .linkcell { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #6A7890; }
+    .tag.expired { background: #FDF1E7; color: #B26A28; }
+    .linkcell { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #6A7890; }
     .empty { color: #9AA6B8; text-align: center; padding: 26px; }
   </style>
 </head>
 <body>
   <div class="page">
     <h2>链接管理</h2>
-    <p class="lead">本系统不使用账号密码。管理员为每位成员签发一条互不相同的链接，链接本身决定成员标识、角色与可访问文档。成员点开链接即可进入，无需注册或登录。</p>
+    <p class="lead">本系统不使用账号密码。管理员为每位成员签发一条互不相同的链接，链接本身决定成员标识、角色与可访问文档。成员点开链接即可进入，无需注册或登录。<br>链接默认 <strong>1 天后自动失效</strong>，无需逐条手动停用；签发时也可改为 1 小时、7 天或永久。</p>
 
     <div class="card">
       <h3>签发专属链接</h3>
@@ -52,6 +53,14 @@
         <label class="field">文档 ID
           <input id="docId" type="text" value="doc-1">
         </label>
+        <label class="field">有效时长
+          <select id="validHours">
+            <option value="24" selected>1 天（默认，自动失效）</option>
+            <option value="1">1 小时</option>
+            <option value="168">7 天</option>
+            <option value="0">永久（需手动停用）</option>
+          </select>
+        </label>
         <button id="issueBtn" class="primary" type="button">签发链接</button>
       </div>
       <div id="result" class="result"></div>
@@ -61,7 +70,7 @@
       <h3>已签发链接 <span id="total" class="count">0</span></h3>
       <table>
         <thead>
-          <tr><th>成员</th><th>角色</th><th>文档</th><th>状态</th><th>签发时间</th><th>链接</th><th>操作</th></tr>
+          <tr><th>成员</th><th>角色</th><th>文档</th><th>状态</th><th>签发时间</th><th>有效期至</th><th>链接</th><th>操作</th></tr>
         </thead>
         <tbody id="linkRows"></tbody>
       </table>

@@ -90,7 +90,7 @@ class RealtimeHub {
   onHello(connId, s, msg) {
     const link = this.links.verify(msg.token);
     if (!link) {
-      this.send(connId, { type: 'ERROR', message: '链接无效或已停用' });
+      this.send(connId, { type: 'ERROR', message: '链接无效、已过期或已停用' });
       return;
     }
     s.token = link.token;

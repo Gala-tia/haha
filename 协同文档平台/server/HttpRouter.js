@@ -23,7 +23,7 @@ class HttpRouter {
       const link = this.links.verify(req.params.token);
       if (!link) {
         return res.status(403).type('html').send(
-          '<meta charset="utf-8"><h2>链接无效或已停用</h2><p>请向管理员重新索取专属链接。</p>'
+          '<meta charset="utf-8"><h2>链接无效、已过期或已停用</h2><p>请向管理员重新索取专属链接。</p>'
         );
       }
       const doc = this.docs.getDocument(link.docId);
@@ -39,11 +39,11 @@ class HttpRouter {
     // 链接管理
     this.app.get('/api/links', (req, res) => res.json(this.links.list()));
     this.app.post('/api/links', (req, res) => {
-      const { memberName, role, docId } = req.body || {};
+      const { memberName, role, docId, validHours } = req.body || {};
       if (!memberName || !String(memberName).trim()) {
         return res.status(400).json({ error: '成员名不能为空' });
       }
-      const link = this.links.issueLink(memberName, role, docId);
+      const link = this.links.issueLink(memberName, role, docId, validHours);
       res.json({ link, url: '/d/' + link.token });
     });
     this.app.post('/api/links/:token/disable', (req, res) => {
