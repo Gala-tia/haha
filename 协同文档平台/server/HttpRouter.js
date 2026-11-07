@@ -17,6 +17,8 @@ class HttpRouter {
 
     this.app.get('/', (req, res) => res.redirect('/admin.html'));
     this.app.get('/admin.html', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'admin.html')));
+    // 第 3 轮：与链接管理并列的免链接只读查看页（不校验 token）
+    this.app.get('/view.html', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'view.html')));
 
     // GET /d/:token —— 首屏页面与文档初始内容（页面内联 bootstrap，避免二次请求）
     this.app.get('/d/:token', (req, res) => {
@@ -49,6 +51,23 @@ class HttpRouter {
     this.app.post('/api/links/:token/disable', (req, res) => {
       const ok = this.links.disable(req.params.token);
       res.json({ ok });
+    });
+
+    // 第 3 轮：免链接只读预览。只读正文与版本元数据，不返回任何链接或令牌。
+    // 直接读 store 而不用 getDocument()，避免任意 docId 请求顺带创建新文档并写盘。
+    this.app.get('/api/preview/:docId', (req, res) => {
+      const docId = req.params.docId;
+      const doc = this.docs.getStore().read().documents[docId];
+      if (!doc) return res.status(404).json({ error: '文档不存在' });
+      res.json({
+        docId,
+        title: doc.title,
+        html: doc.html,
+        updatedAt: doc.updatedAt || '',
+        versionNo: doc.versionNo || 0,
+        versions: this.versions.list(docId),
+        readOnly: true
+      });
     });
 
     // 版本列表与内容（?download=1 触发下载）

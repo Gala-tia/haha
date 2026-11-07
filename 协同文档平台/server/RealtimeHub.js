@@ -1,7 +1,8 @@
 // RealtimeHub：维护连接池、按文档分组广播、按消息类型分发。
 // 表 4-13：onConnection(ws, req) / handle(connId, msg) / broadcast(docId, msg, excludeConnId) / close(connId)
-// 客户端 → 服务端：HELLO / LOCK_REQUEST / EDIT / CURSOR / HEARTBEAT / LOCK_RELEASE
-// 服务端 → 客户端：WELCOME / PRESENCE / LOCK_GRANTED / LOCK_DENIED / LOCK_AVAILABLE / LOCK_TIMEOUT / EDIT / CURSOR / ERROR
+// 客户端 → 服务端：HELLO / LOCK_REQUEST / LOCK_QUEUE_CANCEL / EDIT / CURSOR / HEARTBEAT / LOCK_RELEASE
+// 服务端 → 客户端：WELCOME / PRESENCE / QUEUE_UPDATE / LOCK_GRANTED / LOCK_QUEUED / QUEUE_CANCELLED / LOCK_DENIED / LOCK_AVAILABLE / LOCK_TIMEOUT / EDIT / CURSOR / ERROR
+// 第 2 轮迭代：写入权释放时同步交接给队列首位，不再由「谁先点到」决定。
 const crypto = require('crypto');
 
 const COLORS = ['#E8833A', '#3E9BD6', '#7B68C4', '#45A578', '#D2607A', '#B9913F', '#4FA8A8', '#9C6BB0'];
@@ -72,6 +73,10 @@ class RealtimeHub {
     this.broadcast(docId, { type: 'PRESENCE', members: this.membersOf(docId), lockHolder: this.holderView(docId) });
   }
 
+  broadcastQueue(docId) {
+    this.broadcast(docId, { type: 'QUEUE_UPDATE', queue: this.locks.queueView(docId) });
+  }
+
   handle(connId, msg) {
     const s = this.sessions.get(connId);
     if (!s) return;
@@ -79,6 +84,7 @@ class RealtimeHub {
     switch (msg.type) {
       case 'HELLO': return this.onHello(connId, s, msg);
       case 'LOCK_REQUEST': return this.onLockRequest(connId, s, msg);
+      case 'LOCK_QUEUE_CANCEL': return this.onQueueCancel(connId, s, msg);
       case 'EDIT': return this.onEdit(connId, s, msg);
       case 'CURSOR': return this.onCursor(connId, s, msg);
       case 'HEARTBEAT': return this.onHeartbeat(connId, s, msg);
@@ -105,6 +111,7 @@ class RealtimeHub {
     this.send(connId, {
       type: 'WELCOME', connId, role: s.role, color: s.color,
       members: this.membersOf(s.docId), lockHolder: this.holderView(s.docId),
+      queue: this.locks.queueView(s.docId),
       // 断线重连时据此恢复最新正文（FR-08）
       html: this.docs.getDocument(s.docId).html
     });
@@ -121,10 +128,40 @@ class RealtimeHub {
     const result = this.locks.acquire(s.docId, s.token, s.memberName, connId);
     if (result.ok) {
       this.send(connId, { type: 'LOCK_GRANTED', holder: { name: s.memberName } });
+    } else if (result.queued) {
+      // 已被占用 → 入队，不再要求用户反复点按去抢
+      this.send(connId, {
+        type: 'LOCK_QUEUED', position: result.position, queueLength: result.queueLength,
+        duplicate: !!result.duplicate,
+        holder: result.holder ? { name: result.holder.holderName } : this.holderView(s.docId)
+      });
     } else {
       this.send(connId, { type: 'LOCK_DENIED', holder: { name: result.holder.holderName }, reason: '已有成员持有写入权' });
     }
+    this.broadcastQueue(s.docId);
     this.broadcastPresence(s.docId);
+  }
+
+  onQueueCancel(connId, s) {
+    if (!s.docId) return;
+    const ok = this.locks.cancelQueue(s.docId, connId);
+    this.send(connId, { type: 'QUEUE_CANCELLED', ok });
+    this.broadcastQueue(s.docId);
+  }
+
+  // 释放锁后立即把写入权交给队首。整个方法同步执行、无 await，
+  // Node 单线程下不会在「释放」与「授予」之间插入其他连接的 LOCK_REQUEST。
+  grantNext(docId) {
+    let item;
+    while ((item = this.locks.shiftQueue(docId))) {
+      if (!this.sessions.has(item.connId)) continue; // 排队者已断线，跳过
+      const lock = this.locks.setLock(docId, item);
+      this.send(item.connId, { type: 'LOCK_GRANTED', holder: { name: item.name }, fromQueue: true });
+      this.broadcastQueue(docId);
+      this.broadcastPresence(docId);
+      return lock;
+    }
+    return null;
   }
 
   onEdit(connId, s, msg) {
@@ -155,7 +192,7 @@ class RealtimeHub {
     if (s.docId && s.token) this.finishLock(s.docId, s.token, s, 'LOCK_AVAILABLE');
   }
 
-  // 释放锁 → 生成一次版本快照 → 广播。主动释放、连接断开、超时三条路径共用。
+  // 释放锁 → 生成一次版本快照 → 交接队首 → 广播。主动释放、连接断开、超时三条路径共用。
   finishLock(docId, token, session, eventType) {
     const lock = this.locks.holderOf(docId);
     if (!lock || lock.holderToken !== token) return false;
@@ -164,8 +201,13 @@ class RealtimeHub {
       ? '写入锁超时，系统自动回收'
       : `${lock.holderName} 完成一次编辑（第 ${(session ? session.editingPara : 0) + 1} 段）`;
     this.versions.snapshot(docId, lock.holderName, summary);
-    this.broadcast(docId, { type: eventType, holder: { name: lock.holderName } });
-    this.broadcastPresence(docId);
+    const handed = this.grantNext(docId);
+    this.broadcast(docId, {
+      type: eventType,
+      holder: { name: handed ? handed.holderName : lock.holderName },
+      handedTo: handed ? handed.holderName : null
+    });
+    if (!handed) this.broadcastPresence(docId);
     return true;
   }
 
@@ -174,13 +216,16 @@ class RealtimeHub {
     for (const lock of expired) {
       this.versions.snapshot(lock.docId, lock.holderName, '写入锁超时，系统自动回收');
       this.broadcast(lock.docId, { type: 'LOCK_TIMEOUT', holder: { name: lock.holderName } });
-      this.broadcastPresence(lock.docId);
+      const handed = this.grantNext(lock.docId);
+      if (!handed) this.broadcastPresence(lock.docId);
     }
   }
 
   close(connId) {
     const s = this.sessions.get(connId);
     if (!s) return;
+    // 排队者断线先出队，避免把锁交给一个已关闭的连接
+    if (s.docId) this.locks.cancelQueue(s.docId, connId);
     if (s.docId && s.token) this.finishLock(s.docId, s.token, s, 'LOCK_AVAILABLE');
     const set = this.connections.get(s.docId);
     if (set) {
@@ -188,7 +233,10 @@ class RealtimeHub {
       if (!set.size) this.connections.delete(s.docId);
     }
     this.sessions.delete(connId);
-    if (s.docId) this.broadcastPresence(s.docId);
+    if (s.docId) {
+      this.broadcastQueue(s.docId);
+      this.broadcastPresence(s.docId);
+    }
   }
 }
 

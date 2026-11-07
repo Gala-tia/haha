@@ -48,7 +48,11 @@
         <span>当前写入权</span>
         <strong id="holderName">无人</strong>
       </div>
-      <p class="hint">同一时刻仅一人可写，其余成员实时查看结果。</p>
+      <div class="holder-box" id="queueBox" style="display:none">
+        <span>写入排队（先申请先得）</span>
+        <strong id="queueInfo">无</strong>
+      </div>
+      <p class="hint">同一时刻仅一人可写；写入权释放后自动交给队列中的下一位，无需反复点按。</p>
     </aside>
 
     <section class="editor-wrap" id="editorWrap">

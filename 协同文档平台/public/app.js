@@ -1,5 +1,6 @@
-// EditorPage：渲染文档、工具栏、在线成员与版本列表；采集编辑与段落位置事件。
+// EditorPage：渲染文档、工具栏、在线成员、写入队列与版本列表；采集编辑与段落位置事件。
 // 表 4-13：render / applyRemote / renderPresence / requestLock / releaseLock / pushEdit
+// 第 2 轮迭代：申请写入被占用时进入 FIFO 队列，轮到自己由服务端自动授予写入权。
 (function () {
   'use strict';
   var B = window.__BOOTSTRAP__ || {};
@@ -14,6 +15,8 @@
 
   var ws = null;
   var hasLock = false;
+  var queued = false;
+  var myConnId = null;
   var connectedOnce = false;
   var seq = 0;
   var editTimer = null;
@@ -49,11 +52,33 @@
     for (var i = 0; i < tools.length; i++) tools[i].disabled = !on;
     $('blockStyle').disabled = !on;
     if (B.role !== 'viewer') {
-      lockBtn.textContent = on ? '结束编辑' : '开始编辑';
+      lockBtn.textContent = on ? '结束编辑' : (queued ? '取消排队' : '开始编辑');
       lockBtn.className = 'primary' + (on ? ' editing' : '');
-      lockHint.textContent = on ? '你持有写入权，其他成员实时查看' : '当前为只读，点击申请写入权';
+      if (on) lockHint.textContent = '你持有写入权，其他成员实时查看';
+      else if (!queued) lockHint.textContent = '当前为只读，点击申请写入权';
     }
     if (on) editor.focus();
+  }
+  function setQueueHint(position) {
+    lockHint.textContent = '已加入写入队列，你排在第 ' + position + ' 位（前面 '
+      + (position - 1) + ' 人），轮到你会自动获得写入权';
+  }
+  function renderQueue(queue) {
+    queue = queue || [];
+    var box = $('queueBox');
+    var info = $('queueInfo');
+    box.style.display = queue.length ? 'block' : 'none';
+    info.textContent = queue.length
+      ? queue.length + ' 人：' + queue.map(function (x) { return x.name; }).join(' → ')
+      : '无';
+    if (queued && myConnId && !hasLock) {
+      var me = null;
+      for (var i = 0; i < queue.length; i++) {
+        if (queue[i].connId === myConnId) { me = queue[i]; break; }
+      }
+      if (me) setQueueHint(me.position);
+      else { queued = false; setEditing(false); }
+    }
   }
 
   // ---------- WebSocket ----------
@@ -85,20 +110,40 @@
   function onMessage(m) {
     switch (m.type) {
       case 'WELCOME':
-        // 断线重连后恢复最新正文（FR-08）
+        // 断线重连后恢复最新正文（FR-08），队列状态以服务端为准
         if (connectedOnce && typeof m.html === 'string') render(m.html);
         connectedOnce = true;
+        myConnId = m.connId || myConnId;
+        queued = false;
+        setEditing(false);
         renderPresence(m.members, m.lockHolder);
+        renderQueue(m.queue);
         status('已进入文档');
         break;
       case 'PRESENCE':
         renderPresence(m.members, m.lockHolder);
         break;
+      case 'QUEUE_UPDATE':
+        renderQueue(m.queue);
+        break;
+      case 'LOCK_QUEUED':
+        queued = true;
+        setEditing(false);
+        setQueueHint(m.position);
+        status(lockHint.textContent);
+        break;
+      case 'QUEUE_CANCELLED':
+        queued = false;
+        setEditing(false);
+        status(m.ok ? '已退出写入队列' : '当前不在写入队列中');
+        break;
       case 'LOCK_GRANTED':
+        queued = false;
         setEditing(true);
-        status('已获得写入权，可以开始编辑');
+        status(m.fromQueue ? '排到你了，已自动获得写入权' : '已获得写入权，可以开始编辑');
         break;
       case 'LOCK_DENIED':
+        queued = false;
         setEditing(false);
         lockHint.textContent = m.holder && m.holder.name
           ? m.holder.name + ' 正在编辑，你暂时只读'
@@ -108,7 +153,9 @@
       case 'LOCK_AVAILABLE':
       case 'LOCK_TIMEOUT':
         loadVersions();
-        if (!hasLock) status(m.type === 'LOCK_TIMEOUT' ? '写入锁超时，已自动回收' : '写入权已释放，可申请编辑');
+        if (!hasLock && !queued) {
+          status(m.type === 'LOCK_TIMEOUT' ? '写入锁超时，已自动回收' : '写入权已释放，可申请编辑');
+        }
         break;
       case 'EDIT':
         applyRemote(m.html, m.caretPara, m.author, m.color);
@@ -173,6 +220,7 @@
 
   // ---------- 编辑与锁操作 ----------
   function requestLock() { send({ type: 'LOCK_REQUEST', token: B.token, docId: B.docId }); }
+  function cancelQueue() { send({ type: 'LOCK_QUEUE_CANCEL', docId: B.docId }); }
   function releaseLock() {
     send({ type: 'LOCK_RELEASE', token: B.token, docId: B.docId });
     setEditing(false);
@@ -189,7 +237,9 @@
 
   lockBtn.addEventListener('click', function () {
     if (B.role === 'viewer') return;
-    if (hasLock) releaseLock(); else requestLock();
+    if (hasLock) releaseLock();
+    else if (queued) cancelQueue();
+    else requestLock();
   });
 
   editor.addEventListener('input', function () {

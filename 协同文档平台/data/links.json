@@ -7,6 +7,33 @@
       "docId": "doc-1",
       "enabled": false,
       "createdAt": "2026-11-07T07:32:06.457Z"
+    },
+    {
+      "token": "ab227a8f9d514c27a3c84c9d7facf14a",
+      "memberName": "耶和华",
+      "role": "editor",
+      "docId": "doc-1",
+      "enabled": true,
+      "createdAt": "2026-11-07T08:55:52.201Z",
+      "expiresAt": "2026-11-07T09:55:52.201Z"
+    },
+    {
+      "token": "edad9bdbfbcfe6140b401cd0847a557c",
+      "memberName": "安拉",
+      "role": "editor",
+      "docId": "doc-1",
+      "enabled": true,
+      "createdAt": "2026-11-07T08:56:02.517Z",
+      "expiresAt": "2026-11-07T09:56:02.517Z"
+    },
+    {
+      "token": "f2003ee8edce3da4b8d0475c5312957e",
+      "memberName": "耶稣",
+      "role": "editor",
+      "docId": "doc-1",
+      "enabled": true,
+      "createdAt": "2026-11-07T09:15:54.871Z",
+      "expiresAt": "2026-11-08T09:15:54.871Z"
     }
   ]
 }

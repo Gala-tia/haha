@@ -27,7 +27,8 @@
           + '<td><span class="tag' + tagCls + '">' + state + '</span></td>'
           + '<td>' + esc(fmt(l.createdAt)) + '</td>'
           + '<td>' + esc(fmt(l.expiresAt)) + '</td>'
-          + '<td class="linkcell" title="' + esc(url) + '">' + esc(url) + '</td>'
+          // 第 3 轮：完整 URL 直接显示成可点击链接，不再依赖 title 悬浮查看
+          + '<td class="linkcell" title="' + esc(url) + '"><a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(url) + '</a></td>'
           + '<td><button class="mini" data-act="copy" data-url="' + esc(url) + '"' + (usable ? '' : ' disabled') + '>复制</button> '
           + '<button class="mini" data-act="disable" data-token="' + esc(l.token) + '"' + (usable ? '' : ' disabled') + '>停用</button></td>'
           + '</tr>';
